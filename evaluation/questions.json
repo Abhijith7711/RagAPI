@@ -1,0 +1,110 @@
+[
+  {
+    "id": "q01",
+    "question": "How many annual leave days do employees receive?",
+    "category": "answerable_direct",
+    "expected_found": true,
+    "required_facts": ["18"],
+    "expected_documents": ["employee_handbook.md"],
+    "notes": "Direct factual retrieval from the handbook."
+  },
+  {
+    "id": "q02",
+    "question": "How many paid sick leave days are provided each calendar year?",
+    "category": "answerable_direct",
+    "expected_found": true,
+    "required_facts": ["10"],
+    "expected_documents": ["employee_handbook.md"],
+    "notes": "Direct sick-leave fact."
+  },
+  {
+    "id": "q03",
+    "question": "What is the probation period for new hires?",
+    "category": "answerable_direct",
+    "expected_found": true,
+    "required_facts": ["90"],
+    "expected_documents": ["employee_handbook.md"],
+    "notes": "Probation length."
+  },
+  {
+    "id": "q04",
+    "question": "How much vacation time do full-time staff get each year?",
+    "category": "answerable_paraphrase",
+    "expected_found": true,
+    "required_facts": ["18"],
+    "expected_documents": ["employee_handbook.md"],
+    "notes": "Paraphrase of annual leave."
+  },
+  {
+    "id": "q05",
+    "question": "What is the one-time home-office stipend amount?",
+    "category": "answerable_direct",
+    "expected_found": true,
+    "required_facts": ["15000"],
+    "expected_documents": ["employee_handbook.md"],
+    "notes": "Numeric stipend; accept 15,000 after normalization."
+  },
+  {
+    "id": "q06",
+    "question": "What are the annual leave and sick leave entitlements?",
+    "category": "multi_evidence",
+    "expected_found": true,
+    "required_facts": ["18", "10"],
+    "expected_documents": ["employee_handbook.md"],
+    "notes": "Two facts from the leave section."
+  },
+  {
+    "id": "q07",
+    "question": "After probation, how many remote days are allowed each week and how much resignation notice is required?",
+    "category": "multi_evidence",
+    "expected_found": true,
+    "required_facts": ["2", "30"],
+    "expected_documents": ["company_policies.txt"],
+    "notes": "Two policy facts; remote work and notice."
+  },
+  {
+    "id": "q08",
+    "question": "What 401(k) match does Northwind Labs provide?",
+    "category": "unanswerable_absent",
+    "expected_found": false,
+    "required_facts": [],
+    "expected_documents": [],
+    "notes": "Benefit is explicitly not offered; no match percentage exists."
+  },
+  {
+    "id": "q09",
+    "question": "Does the company pay for pet insurance?",
+    "category": "unanswerable_absent",
+    "expected_found": false,
+    "required_facts": [],
+    "expected_documents": [],
+    "notes": "Pet insurance is absent as a benefit."
+  },
+  {
+    "id": "q10",
+    "question": "How many days of bereavement leave do employees receive?",
+    "category": "unanswerable_similar",
+    "expected_found": false,
+    "required_facts": [],
+    "expected_documents": [],
+    "notes": "Sounds like leave policy but bereavement is not specified."
+  },
+  {
+    "id": "q11",
+    "question": "What is the monthly gym membership reimbursement amount?",
+    "category": "unanswerable_similar",
+    "expected_found": false,
+    "required_facts": [],
+    "expected_documents": [],
+    "notes": "Similar-sounding benefit that is not offered."
+  },
+  {
+    "id": "q12",
+    "question": "Within how many days must business expenses be submitted?",
+    "category": "answerable_direct",
+    "expected_found": true,
+    "required_facts": ["14"],
+    "expected_documents": ["company_policies.txt"],
+    "notes": "Expense deadline."
+  }
+]

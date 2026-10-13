@@ -1,0 +1,29 @@
+NORTHWIND LABS COMPANY POLICIES
+Effective date: 1 March 2026
+
+1. Remote work
+Full-time employees may work remotely for 2 days each week after probation. Remote days must be entered in the HR portal at least 24 hours in advance. The remaining weekdays are office days at the Bengaluru headquarters unless travel is approved.
+
+Remote work is not a substitute for leave. Employees who are unwell should use sick leave rather than remote work.
+
+2. Notice period
+After probation, employees must provide 30 days of written notice to resign. Northwind Labs provides 30 days of notice for termination without cause, except in cases of documented misconduct.
+
+Garden leave may be required during the notice period. Unused annual leave is not a substitute for serving notice unless HR approves otherwise in writing.
+
+3. Expenses
+Business expenses must be submitted within 14 days of being incurred. Receipts are required for any claim above INR 200. Claims without receipts or late claims may be rejected.
+
+Travel bookings require manager approval at least 5 days before departure. Economy class is the default for domestic flights.
+
+4. Information security
+Documents are classified as Public, Internal, or Confidential. Confidential data must not be stored on personal devices or personal cloud accounts. Production credentials are issued only through the company secrets manager.
+
+Phishing reports go to security@northwindlabs.example.
+
+5. Performance
+Performance reviews occur twice each year, in June and December. A written improvement plan lasts 60 days when performance is below expectations.
+
+If a benefit is not written in this file or in the employee handbook, it is not offered.
+
+End of policies.

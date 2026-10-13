@@ -1,0 +1,23 @@
+services:
+  rag-api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.example
+    environment:
+      CHROMA_PERSIST_DIRECTORY: /app/data/chroma
+      HF_HOME: /app/.cache/huggingface
+    volumes:
+      - chroma_data:/app/data/chroma
+      - hf_cache:/app/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  chroma_data:
+  hf_cache:

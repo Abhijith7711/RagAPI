@@ -1,0 +1,11 @@
+venv
+.git
+.pytest_cache
+__pycache__
+data
+evaluation/results
+*.pyc
+.env
+.cache
+hf_cache
+.mypy_cache
