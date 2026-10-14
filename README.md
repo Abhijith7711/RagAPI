@@ -2,7 +2,7 @@
 
 A production-grade, document-grounded Retrieval-Augmented Generation (RAG) API built with FastAPI, ChromaDB, SentenceTransformers, and Groq LLM.
 
-Answers questions strictly from uploaded documents, provides exact source citations with excerpts, and **reliably abstains** whenever information is absent (zero hallucinations).
+Answers questions strictly from uploaded documents, provides exact source citations with excerpts, and **reliably abstains** whenever information is absent (strongly mitigating hallucinations via citation validation).
 
 ---
 
@@ -136,3 +136,14 @@ Run the application in a Docker container:
 ```bash
 docker-compose up --build
 ```
+
+---
+
+## Limitations
+
+- **No Authentication & Database:** No user accounts, role-based access, or relational database (e.g. PostgreSQL) is connected.
+- **Stateless (No Chat History):** Questions are answered as independent single-turn requests; multi-turn conversational context is not stored.
+- **No SSE Streaming:** Answers are returned as a complete JSON response once generation finishes, rather than streamed token-by-token via Server-Sent Events (SSE).
+- **Text-Only Documents:** Works with text-based PDF, TXT, and Markdown files. Scanned documents and images are not supported (no OCR).
+- **Semantic Search Only:** Uses dense vector embeddings without hybrid keyword search (BM25), which can occasionally miss exact code numbers or specific IDs.
+- **Top-K Context Window:** Grounding is limited to the top retrieved chunks (`top_k=5`), rather than synthesizing whole-corpus summaries.
