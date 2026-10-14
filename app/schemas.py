@@ -29,6 +29,7 @@ class Chunk(BaseModel):
 class RetrievedChunk(Chunk):
     distance: float
 
+
 class Source(BaseModel):
     document: str
     excerpt: str

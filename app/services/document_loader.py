@@ -26,7 +26,9 @@ def normalize_whitespace(text: str) -> str:
 def validate_filename(filename: str | None) -> str:
     if not filename or not filename.strip():
         raise UnsupportedFileTypeError("unnamed")
-    safe_name = Path(filename).name
+    # Normalize both POSIX and Windows path separators
+    normalized_path = filename.replace("\\", "/")
+    safe_name = Path(normalized_path).name
     suffix = Path(safe_name).suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
         raise UnsupportedFileTypeError(safe_name)

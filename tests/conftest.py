@@ -41,7 +41,6 @@ def settings(tmp_path) -> Settings:
         chroma_collection_name="test_documents",
         embedding_model="fake",
         groq_api_key="",
-        llm_provider="passthrough",
         chunk_size=400,
         chunk_overlap=50,
         top_k=5,

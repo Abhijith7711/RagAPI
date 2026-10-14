@@ -4,7 +4,8 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env.example
+      - path: .env
+        required: false
     environment:
       CHROMA_PERSIST_DIRECTORY: /app/data/chroma
       HF_HOME: /app/.cache/huggingface

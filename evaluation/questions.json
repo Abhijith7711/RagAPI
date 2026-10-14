@@ -106,5 +106,23 @@
     "required_facts": ["14"],
     "expected_documents": ["company_policies.txt"],
     "notes": "Expense deadline."
+  },
+  {
+    "id": "q13",
+    "question": "How many characters must an employee password contain according to the IT security policy?",
+    "category": "answerable_direct",
+    "expected_found": true,
+    "required_facts": ["14"],
+    "expected_documents": ["it_security_policy.pdf"],
+    "notes": "Direct factual retrieval from PDF document page 1."
+  },
+  {
+    "id": "q14",
+    "question": "What is the deadline to report a security breach or lost device?",
+    "category": "answerable_direct",
+    "expected_found": true,
+    "required_facts": ["1"],
+    "expected_documents": ["it_security_policy.pdf"],
+    "notes": "Direct factual retrieval from PDF document page 2."
   }
 ]

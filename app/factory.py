@@ -3,18 +3,20 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import documents, health, questions
+from app.api.routes import documents, health, questions, ui
 from app.config import Settings, get_settings
 from app.exceptions import AppError
 from app.schemas import ErrorResponse
 from app.services.embeddings import FakeEmbeddings, SentenceTransformerEmbeddings
 from app.services.ingestion import IngestionService
-from app.services.llm import GroqLLM, LLMClient, PassthroughLLM
+from app.services.llm import GroqLLM, LLMClient
 from app.services.qa import QAService
 from app.services.retrieval import RetrievalService
 from app.services.vector_store import VectorStore
@@ -40,9 +42,6 @@ def build_embedder(settings: Settings, embedder=None):
 def build_llm(settings: Settings, llm: LLMClient | None = None) -> LLMClient:
     if llm is not None:
         return llm
-    if settings.llm_provider == "passthrough" or not settings.groq_api_key:
-        logger.warning("Using passthrough LLM; configure GROQ_API_KEY for hosted generation.")
-        return PassthroughLLM()
     return GroqLLM(
         api_key=settings.groq_api_key,
         model=settings.llm_model,
@@ -74,7 +73,7 @@ def create_app(
     qa = QAService(retrieval=RetrievalService(embedder, vector_store), llm=llm_client)
 
     app = FastAPI(
-        title="Reliable RAG API",
+        title="RAG API",
         description="Document-grounded question answering with evidence and abstention.",
         version="1.0.0",
     )
@@ -87,6 +86,8 @@ def create_app(
     app.include_router(health.router)
     app.include_router(documents.router)
     app.include_router(questions.router)
+    app.include_router(ui.router)
+    app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
     @app.exception_handler(AppError)
     async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:

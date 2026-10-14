@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Knowledge Assistant</title>
+    <meta name="description" content="AI-powered document Q&A with evidence grounding">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Knowledge Base</h1>
+                <span class="status-dot" id="statusDot" title="Checking…"></span>
+            </div>
+
+            <section>
+                <div class="drop-zone" id="dropZone">
+                    <span class="drop-icon">&#8593;</span>
+                    <p>Drop files here or <span class="link">browse</span></p>
+                    <p class="hint">PDF, TXT, Markdown</p>
+                    <input type="file" id="fileInput" accept=".pdf,.txt,.md,.markdown" hidden multiple>
+                </div>
+            </section>
+
+            <section>
+                <h2>Documents</h2>
+                <div id="docList" class="doc-list">
+                    <p class="empty-state">No documents indexed</p>
+                </div>
+            </section>
+
+        </aside>
+
+        <main class="chat-panel">
+            <div class="chat-header">
+                <h2>RAG Assistant</h2>
+            </div>
+
+            <div class="messages" id="messages">
+                <div class="welcome">
+                    <h3>Document Knowledge Assistant</h3>
+                    <p>Upload any PDF, TXT, or Markdown file to index and chunk it.
+                       Ask questions to receive answers grounded strictly in your documents with evidence citations.</p>
+                </div>
+            </div>
+
+            <form class="input-area" id="inputForm">
+                <textarea id="questionInput" placeholder="Ask a question…" rows="1"></textarea>
+                <button type="submit" class="btn btn-primary" id="sendBtn">&#8594;</button>
+            </form>
+        </main>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

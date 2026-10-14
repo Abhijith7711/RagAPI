@@ -18,3 +18,5 @@ Thumbs.db
 .DS_Store
 evaluation/results/*.json
 !evaluation/results/.gitkeep
+evaluation/results/eval_chroma/
+

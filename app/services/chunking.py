@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+
 from app.schemas import Chunk, ExtractedDocument
 
 # ~4 characters per token: 2000 chars ≈ 500 tokens, 300 chars ≈ 75 tokens.
@@ -10,8 +12,6 @@ DEFAULT_CHUNK_OVERLAP = 300
 
 
 def content_hash(text: str) -> str:
-    import hashlib
-
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
@@ -98,7 +98,11 @@ def _split_windows(text: str, chunk_size: int, overlap: int) -> list[tuple[int, 
             windows.append((stripped_start, stripped_start + len(piece), piece))
         if end >= length:
             break
-        start = max(end - overlap, start + 1)
+        raw_start = max(end - overlap, start + 1)
+        # Snap raw_start forward to avoid slicing mid-word
+        while raw_start < end and raw_start > 0 and text[raw_start - 1] not in " \n\r\t":
+            raw_start += 1
+        start = raw_start if raw_start < end else max(end - overlap, start + 1)
     return windows
 
 

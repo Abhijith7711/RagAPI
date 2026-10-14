@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.config import Settings
 from app.dependencies import get_ingestion_service, get_settings
-from app.exceptions import PayloadTooLargeError, UnsupportedFileTypeError
+from app.exceptions import PayloadTooLargeError
 from app.schemas import IngestResponse
 from app.services.document_loader import validate_filename
 from app.services.ingestion import IngestionService
@@ -20,6 +20,4 @@ async def upload_document(
     content = await file.read()
     if len(content) > settings.max_upload_bytes:
         raise PayloadTooLargeError(settings.max_upload_size_mb)
-    if not filename:
-        raise UnsupportedFileTypeError("unnamed")
     return ingestion.ingest(filename, content)

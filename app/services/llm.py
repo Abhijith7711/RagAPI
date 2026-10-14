@@ -46,7 +46,9 @@ class GroqLLM:
 
     def complete(self, question: str, evidence: list[RetrievedChunk]) -> LLMStructuredResponse:
         if not self.api_key:
-            raise LLMUnavailableError("GROQ_API_KEY is not configured.")
+            raise LLMUnavailableError(
+                "GROQ_API_KEY is not configured. Please set your GROQ_API_KEY in the .env file."
+            )
         try:
             from groq import Groq
 
@@ -73,23 +75,3 @@ class GroqLLM:
             raise ValueError(str(exc)) from exc
 
 
-class PassthroughLLM:
-    """Offline stand-in used when no API key is available.
-
-    It does not invent facts: the answer is a concatenation of retrieved
-    excerpts, or an abstention when no evidence is supplied.
-    """
-
-    def complete(self, question: str, evidence: list[RetrievedChunk]) -> LLMStructuredResponse:
-        if not evidence:
-            return LLMStructuredResponse(
-                answer="The information is unavailable in the provided documents.",
-                found_in_documents=False,
-                supporting_chunk_ids=[],
-            )
-        excerpts = " ".join(item.text for item in evidence)
-        return LLMStructuredResponse(
-            answer=excerpts[:1200],
-            found_in_documents=True,
-            supporting_chunk_ids=[item.chunk_id for item in evidence],
-        )

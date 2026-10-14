@@ -56,9 +56,24 @@ class QAService:
 
     def _ground_response(self, question: str, llm_result, evidence: list[RetrievedChunk]) -> AskResponse:
         evidence_by_id = {item.chunk_id: item for item in evidence}
-        valid_ids = [chunk_id for chunk_id in llm_result.supporting_chunk_ids if chunk_id in evidence_by_id]
+        evidence_by_doc = {}
+        for item in evidence:
+            evidence_by_doc[item.document_hash] = item
+            evidence_by_doc[item.document_id] = item
+            evidence_by_doc[item.filename] = item
 
-        if not llm_result.found_in_documents or not valid_ids:
+        resolved_chunks = []
+        for cited in llm_result.supporting_chunk_ids:
+            if cited in evidence_by_id:
+                resolved_chunks.append(evidence_by_id[cited])
+            elif cited in evidence_by_doc:
+                resolved_chunks.append(evidence_by_doc[cited])
+            else:
+                matching = [item for item in evidence if item.chunk_id.startswith(f"{cited}:")]
+                if matching:
+                    resolved_chunks.extend(matching)
+
+        if not llm_result.found_in_documents or not resolved_chunks:
             logger.info("Abstaining after citation validation")
             return AskResponse(
                 question=question,
@@ -67,12 +82,18 @@ class QAService:
                 sources=[],
             )
 
-        sources = [_to_source(evidence_by_id[chunk_id]) for chunk_id in valid_ids]
+        unique_sources = []
+        seen = set()
+        for item in resolved_chunks:
+            if item.chunk_id not in seen:
+                seen.add(item.chunk_id)
+                unique_sources.append(_to_source(item))
+
         return AskResponse(
             question=question,
             answer=llm_result.answer,
             found_in_documents=True,
-            sources=sources,
+            sources=unique_sources,
         )
 
 

@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,7 +17,7 @@ if str(ROOT) not in sys.path:
 from app.config import Settings
 from app.factory import create_app
 from app.services.embeddings import FakeEmbeddings, SentenceTransformerEmbeddings
-from app.services.llm import GroqLLM, PassthroughLLM
+from app.services.llm import GroqLLM
 
 SAMPLE_DIR = ROOT / "sample_documents"
 QUESTIONS_PATH = ROOT / "evaluation" / "questions.json"
@@ -109,12 +110,11 @@ def main() -> int:
         chroma_persist_directory=persist,
         chroma_collection_name="evaluation",
         embedding_model="sentence-transformers/all-MiniLM-L6-v2" if args.real_embeddings else "fake",
-        llm_provider="groq" if args.live_llm else "passthrough",
-        groq_api_key=Settings().groq_api_key if args.live_llm else "",
+        groq_api_key=Settings().groq_api_key,
         chunk_size=800,
         chunk_overlap=120,
         top_k=5,
-        relevance_threshold=0.55 if args.real_embeddings else 1.05,
+        relevance_threshold=0.60 if args.real_embeddings else 1.05,
     )
 
     if args.real_embeddings:
@@ -122,14 +122,12 @@ def main() -> int:
     else:
         embedder = FakeEmbeddings()
 
-    if args.live_llm and settings.groq_api_key:
-        llm = GroqLLM(settings.groq_api_key, settings.llm_model, settings.llm_temperature)
-        llm_mode = "groq"
-    else:
-        llm = PassthroughLLM()
-        llm_mode = "passthrough"
-        if args.live_llm and not settings.groq_api_key:
-            llm_mode = "passthrough_missing_api_key"
+    if not settings.groq_api_key:
+        print("ERROR: GROQ_API_KEY is not configured in .env. Please set GROQ_API_KEY to run the evaluation.")
+        return 1
+
+    llm = GroqLLM(settings.groq_api_key, settings.llm_model, settings.llm_temperature)
+    llm_mode = "groq"
 
     if persist.exists():
         import shutil
@@ -139,7 +137,12 @@ def main() -> int:
     app = create_app(settings=settings, embedder=embedder, llm=llm)
     ingest_samples(app)
 
-    rows = [evaluate_item(app, item) for item in load_questions()]
+    rows = []
+    questions = load_questions()
+    for idx, item in enumerate(questions):
+        if idx > 0:
+            time.sleep(2.0)
+        rows.append(evaluate_item(app, item))
     passed = sum(1 for row in rows if row["passed"])
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
