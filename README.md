@@ -6,8 +6,7 @@ Answers questions strictly from uploaded documents, provides exact source citati
 
 ---
 
-## Features & Rubric Compliance
-
+## Features 
 - **Document Ingestion:** Ingests PDF, TXT, and Markdown files with sliding-window chunking, paragraph-boundary preservation, and SHA-256 deduplication.
 - **Semantic Retrieval:** Dense embeddings (`sentence-transformers/all-MiniLM-L6-v2`) and persistent vector search using ChromaDB.
 - **Grounded LLM Answering:** Integrates with Groq (`openai/gpt-oss-120b`) using structured JSON generation.
@@ -146,4 +145,3 @@ docker-compose up --build
 - **No SSE Streaming:** Answers are returned as a complete JSON response once generation finishes, rather than streamed token-by-token via Server-Sent Events (SSE).
 - **Text-Only Documents:** Works with text-based PDF, TXT, and Markdown files. Scanned documents and images are not supported (no OCR).
 - **Semantic Search Only:** Uses dense vector embeddings without hybrid keyword search (BM25), which can occasionally miss exact code numbers or specific IDs.
-- **Top-K Context Window:** Grounding is limited to the top retrieved chunks (`top_k=5`), rather than synthesizing whole-corpus summaries.
