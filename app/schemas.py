@@ -5,31 +5,6 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
-class ExtractedPage(BaseModel):
-    page_number: Optional[int] = None
-    text: str
-
-
-class ExtractedDocument(BaseModel):
-    filename: str
-    text: str
-    pages: list[ExtractedPage] = Field(default_factory=list)
-
-
-class Chunk(BaseModel):
-    chunk_id: str
-    document_id: str
-    filename: str
-    chunk_index: int
-    text: str
-    page_number: Optional[int] = None
-    document_hash: str
-
-
-class RetrievedChunk(Chunk):
-    distance: float
-
-
 class Source(BaseModel):
     document: str
     excerpt: str
@@ -82,6 +57,7 @@ class ErrorResponse(BaseModel):
 
 
 class LLMStructuredResponse(BaseModel):
+    """Schema for structured LLM output — used by ChatGroq.with_structured_output()."""
     answer: str
     found_in_documents: bool
     supporting_chunk_ids: list[str] = Field(default_factory=list)

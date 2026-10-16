@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from app.schemas import RetrievedChunk
-
 SYSTEM_PROMPT = """You are a document-grounded question-answering assistant.
 
 Answer using only the evidence supplied in the context.
@@ -27,13 +25,13 @@ Return a JSON object with exactly these keys:
 """
 
 
-def build_user_prompt(question: str, evidence: list[RetrievedChunk]) -> str:
+def build_user_prompt(question: str, evidence: list[dict]) -> str:
     """Assemble the user-turn message with the question and retrieved evidence blocks."""
     blocks = []
     for item in evidence:
-        page = f", page={item.page_number}" if item.page_number is not None else ""
+        page = f", page={item['page_number']}" if item.get("page_number") is not None else ""
         blocks.append(
-            f"[evidence_id={item.chunk_id} | document={item.filename}{page}]\n{item.text}"
+            f"[evidence_id={item['chunk_id']} | document={item['filename']}{page}]\n{item['text']}"
         )
     context = "\n\n".join(blocks) if blocks else "(no evidence)"
     return (

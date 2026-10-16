@@ -1,22 +1,28 @@
-"""Extract text from PDF, TXT, and Markdown uploads."""
+"""Extract text from PDF, TXT, and Markdown uploads → LangChain Documents."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from pathlib import Path
 
 import fitz
+from langchain_core.documents import Document
 
 from app.exceptions import EmptyDocumentError, UnreadableDocumentError, UnsupportedFileTypeError
-from app.schemas import ExtractedDocument, ExtractedPage
 
 logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".md", ".markdown"}
 
 
-def normalize_whitespace(text: str) -> str:
+def content_hash(text: str) -> str:
+    """SHA-256 fingerprint used for duplicate detection."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _normalize(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -26,16 +32,17 @@ def normalize_whitespace(text: str) -> str:
 def validate_filename(filename: str | None) -> str:
     if not filename or not filename.strip():
         raise UnsupportedFileTypeError("unnamed")
-    # Normalize both POSIX and Windows path separators
-    normalized_path = filename.replace("\\", "/")
-    safe_name = Path(normalized_path).name
-    suffix = Path(safe_name).suffix.lower()
-    if suffix not in SUPPORTED_EXTENSIONS:
+    safe_name = Path(filename.replace("\\", "/")).name
+    if Path(safe_name).suffix.lower() not in SUPPORTED_EXTENSIONS:
         raise UnsupportedFileTypeError(safe_name)
     return safe_name
 
 
-def load_document(filename: str, content: bytes) -> ExtractedDocument:
+def load_document(filename: str, content: bytes) -> list[Document]:
+    """Parse an uploaded file into a list of LangChain Documents (one per page/section).
+
+    Each Document carries metadata: filename, page_number, document_hash.
+    """
     if content is None or len(content) == 0:
         raise EmptyDocumentError()
 
@@ -45,21 +52,32 @@ def load_document(filename: str, content: bytes) -> ExtractedDocument:
     if suffix == ".pdf":
         pages = _extract_pdf(content)
     else:
-        pages = _extract_text_file(content)
+        pages = _extract_text(content)
 
-    combined = normalize_whitespace("\n\n".join(page.text for page in pages if page.text.strip()))
-    if not combined:
+    # Build LangChain Documents with metadata
+    docs: list[Document] = []
+    all_text_parts: list[str] = []
+    for page_text, page_number in pages:
+        cleaned = _normalize(page_text)
+        if cleaned:
+            all_text_parts.append(cleaned)
+            docs.append(Document(
+                page_content=cleaned,
+                metadata={"filename": safe_name, "page_number": page_number},
+            ))
+
+    if not docs:
         raise EmptyDocumentError("No extractable text was found in the document.")
 
-    normalized_pages = [
-        ExtractedPage(page_number=page.page_number, text=normalize_whitespace(page.text))
-        for page in pages
-        if page.text.strip()
-    ]
-    return ExtractedDocument(filename=safe_name, text=combined, pages=normalized_pages)
+    # Attach document_hash to every document (computed from combined text)
+    doc_hash = content_hash("\n\n".join(all_text_parts))
+    for doc in docs:
+        doc.metadata["document_hash"] = doc_hash
+
+    return docs
 
 
-def _extract_text_file(content: bytes) -> list[ExtractedPage]:
+def _extract_text(content: bytes) -> list[tuple[str, int | None]]:
     try:
         text = content.decode("utf-8")
     except UnicodeDecodeError:
@@ -67,23 +85,22 @@ def _extract_text_file(content: bytes) -> list[ExtractedPage]:
             text = content.decode("latin-1")
         except UnicodeDecodeError as exc:
             raise UnreadableDocumentError("The text file is not readable as UTF-8 or Latin-1.") from exc
-    return [ExtractedPage(page_number=None, text=text)]
+    return [(text, None)]
 
 
-def _extract_pdf(content: bytes) -> list[ExtractedPage]:
+def _extract_pdf(content: bytes) -> list[tuple[str, int]]:
     try:
         document = fitz.open(stream=content, filetype="pdf")
     except Exception as exc:
         raise UnreadableDocumentError("The PDF is malformed or unreadable.") from exc
-
     try:
-        pages: list[ExtractedPage] = []
+        pages: list[tuple[str, int]] = []
         for index, page in enumerate(document, start=1):
             try:
                 text = page.get_text() or ""
             except Exception as exc:
                 raise UnreadableDocumentError(f"Failed to extract text from PDF page {index}.") from exc
-            pages.append(ExtractedPage(page_number=index, text=text))
+            pages.append((text, index))
         if not pages:
             raise EmptyDocumentError("The PDF contains no pages.")
         return pages
