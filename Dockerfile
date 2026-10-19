@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY sample_documents ./sample_documents
 
-RUN mkdir -p /app/data/chroma /app/.cache && chown -R appuser:appuser /app
+RUN mkdir -p /app/data/chroma /app/.cache/huggingface && chown -R appuser:appuser /app
 
 USER appuser
 ENV HOME=/home/appuser
