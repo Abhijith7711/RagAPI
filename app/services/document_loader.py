@@ -43,7 +43,7 @@ def load_document(filename: str, content: bytes) -> list[Document]:
 
     Each Document carries metadata: filename, page_number, document_hash.
     """
-    if content is None or len(content) == 0:
+    if not content:
         raise EmptyDocumentError()
 
     safe_name = validate_filename(filename)

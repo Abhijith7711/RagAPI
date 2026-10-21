@@ -15,7 +15,7 @@ from app.config import Settings, get_settings
 from app.exceptions import AppError
 from app.schemas import ErrorResponse
 from app.services.ingestion import IngestionService
-from app.services.qa import QAService
+from app.services.qa import LLMClient, QAService
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,8 @@ def configure_logging(level: str) -> None:
     )
 
 
-def build_vectorstore(settings: Settings, embedding_function=None):
-    """Create a LangChain Chroma vector store."""
+def build_vectorstore(settings: Settings, embedding_function: object | None = None):
+    """Create a persistent LangChain Chroma vector store with cosine similarity."""
     from langchain_chroma import Chroma
 
     if embedding_function is None:
@@ -46,10 +46,10 @@ def build_vectorstore(settings: Settings, embedding_function=None):
     )
 
 
-def build_llm(settings: Settings, llm=None):
-    """Create a LangChain LLM adapter or use injected test double."""
+def build_llm(settings: Settings, llm: LLMClient | None = None) -> LLMClient:
+    """Return a LangChain LLM adapter, or the injected test double."""
     if llm is not None:
-        return llm
+        return llm  # type: ignore[return-value]  # test double satisfies protocol
 
     from langchain_groq import ChatGroq
     from app.services.qa import LangChainLLM

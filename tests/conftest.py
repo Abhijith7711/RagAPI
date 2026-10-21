@@ -78,11 +78,11 @@ def settings(tmp_path) -> Settings:
         chunk_size=400,
         chunk_overlap=50,
         top_k=5,
-        # FakeEmbeddings uses hash-based bag-of-words vectors whose cosine
-        # distances are much higher than real embeddings. Use a permissive
-        # threshold (same as evaluation/run_evaluation.py) so chunks actually
-        # reach the QA service in tests.
-        relevance_threshold=1.05,
+        # FakeEmbeddings uses hash-based bag-of-words vectors. With the
+        # similarity_search_with_relevance_scores API (scores in [0, 1],
+        # higher = more relevant), use a permissive floor of 0.0 so all
+        # retrieved chunks reach the QA service during tests.
+        relevance_threshold=0.0,
         max_upload_size_mb=1,
     )
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from langchain_chroma import Chroma
+from langchain_core.vectorstores import VectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.schemas import IngestResponse
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class IngestionService:
-    def __init__(self, vectorstore: Chroma, chunk_size: int, chunk_overlap: int):
+    def __init__(self, vectorstore: VectorStore, chunk_size: int, chunk_overlap: int):
         self.vectorstore = vectorstore
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -22,15 +22,24 @@ class IngestionService:
             separators=["\n\n", "\n", " ", ""],
         )
 
+    def _find_existing_by_hash(self, document_hash: str) -> dict:
+        """Query ChromaDB for chunks that share the given document hash.
+
+        NOTE: Uses the private ``_collection`` attribute on the Chroma
+        vectorstore. If langchain-chroma exposes a public metadata-query helper
+        in a future version, replace this with that call.
+        """
+        return self.vectorstore._collection.get(  # noqa: SLF001
+            where={"document_hash": document_hash},
+            include=[],
+        )
+
     def ingest(self, filename: str, content: bytes) -> IngestResponse:
         docs = load_document(filename, content)
         document_hash = docs[0].metadata["document_hash"]
 
         # Duplicate detection via ChromaDB metadata query
-        existing = self.vectorstore._collection.get(
-            where={"document_hash": document_hash},
-            include=[],
-        )
+        existing = self._find_existing_by_hash(document_hash)
         if existing and existing.get("ids"):
             logger.info("Duplicate document skipped: %s", filename)
             return IngestResponse(

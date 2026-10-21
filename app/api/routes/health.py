@@ -1,3 +1,5 @@
+"""Liveness and readiness health-check endpoints."""
+
 from fastapi import APIRouter, Request
 
 from app.schemas import HealthResponse, ReadyResponse

@@ -22,11 +22,6 @@ QUESTIONS_PATH = ROOT / "evaluation" / "questions.json"
 RESULTS_DIR = ROOT / "evaluation" / "results"
 
 
-def normalize(text: str) -> str:
-    compact = re.sub(r"[,\s]+", "", text.lower())
-    return compact
-
-
 def fact_present(answer: str, fact: str) -> bool:
     if fact.isdigit():
         collapsed = answer.replace(",", "")
@@ -112,7 +107,7 @@ def main() -> int:
         chunk_size=800,
         chunk_overlap=120,
         top_k=5,
-        relevance_threshold=0.70 if args.real_embeddings else 1.05,
+        relevance_threshold=0.70 if args.real_embeddings else 0.0,
     )
 
     # Build embeddings

@@ -1,6 +1,8 @@
 """Request, response, and internal data models."""
 
-from typing import Literal, Optional
+from __future__ import annotations
+
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -9,7 +11,7 @@ class Source(BaseModel):
     document: str
     excerpt: str
     chunk_id: str
-    page: Optional[int] = None
+    page: int | None = None
 
 
 class IngestResponse(BaseModel):
@@ -22,8 +24,8 @@ class IngestResponse(BaseModel):
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
-    top_k: Optional[int] = Field(default=None, ge=1, le=20)
-    relevance_threshold: Optional[float] = Field(default=None, ge=0.0, le=2.0)
+    top_k: int | None = Field(default=None, ge=1, le=20)
+    relevance_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @field_validator("question")
     @classmethod

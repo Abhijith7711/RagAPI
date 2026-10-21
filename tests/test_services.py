@@ -122,14 +122,14 @@ def test_retrieval_and_relevance_threshold(tmp_path):
         c.id = f"{c.metadata['document_hash']}:{i}"
     vectorstore.add_documents(chunks)
 
-    # Permissive threshold retrieves the chunk
-    results = vectorstore.similarity_search_with_score("How many leave days?", k=3)
-    matches = [(doc, score) for doc, score in results if score <= 1.5]
+    # Permissive threshold (>= 0.0) retrieves the chunk
+    results = vectorstore.similarity_search_with_relevance_scores("How many leave days?", k=3)
+    matches = [(doc, score) for doc, score in results if score >= 0.0]
     assert len(matches) >= 1
     assert "18 days" in matches[0][0].page_content
 
-    # Strict zero threshold filters it out
-    filtered = [(doc, score) for doc, score in results if score <= 0.0]
+    # Strict impossible threshold (> 1.0) filters everything out
+    filtered = [(doc, score) for doc, score in results if score > 1.0]
     assert len(filtered) == 0
 
 
@@ -145,7 +145,7 @@ def test_qa_service_grounding_and_abstention():
 
     class StubVectorStore:
         _collection = type("C", (), {"count": lambda self: 1})()
-        def similarity_search_with_score(self, query, k=5):
+        def similarity_search_with_relevance_scores(self, query, k=5):
             from langchain_core.documents import Document
             return [(Document(page_content=e["text"], metadata={
                 "chunk_id": e["chunk_id"],
@@ -154,7 +154,7 @@ def test_qa_service_grounding_and_abstention():
                 "document_id": "doc-123",
                 "document_hash": "hash-123",
                 "chunk_index": idx,
-            }), 0.15) for idx, e in enumerate(evidence)]
+            }), 0.85) for idx, e in enumerate(evidence)]
 
     # Successful grounded answer
     qa = QAService(StubVectorStore(), llm)
@@ -167,7 +167,7 @@ def test_qa_service_grounding_and_abstention():
     # Abstention when no evidence passes retrieval filter
     class EmptyVectorStore:
         _collection = type("C", (), {"count": lambda self: 0})()
-        def similarity_search_with_score(self, query, k=5):
+        def similarity_search_with_relevance_scores(self, query, k=5):
             return []
 
     empty_qa = QAService(EmptyVectorStore(), llm)
@@ -192,7 +192,7 @@ def test_qa_service_multi_evidence():
 
     class StubVectorStore:
         _collection = type("C", (), {"count": lambda self: 2})()
-        def similarity_search_with_score(self, query, k=5):
+        def similarity_search_with_relevance_scores(self, query, k=5):
             from langchain_core.documents import Document
             return [(Document(page_content=e["text"], metadata={
                 "chunk_id": e["chunk_id"],
@@ -201,7 +201,7 @@ def test_qa_service_multi_evidence():
                 "document_id": "doc-123",
                 "document_hash": "hash-123",
                 "chunk_index": idx,
-            }), 0.15) for idx, e in enumerate(evidence)]
+            }), 0.85) for idx, e in enumerate(evidence)]
 
     qa = QAService(StubVectorStore(), llm)
     res = qa.ask("What are leave allowances?", top_k=5, relevance_threshold=0.6)

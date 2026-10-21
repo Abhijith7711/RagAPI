@@ -1,5 +1,7 @@
 """Application errors mapped to consistent HTTP responses."""
 
+from __future__ import annotations
+
 
 class AppError(Exception):
     """Base error with a public message, HTTP status, and machine-readable code."""

@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 from typing import Protocol
 
-from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.vectorstores import VectorStore
 
 from app.exceptions import LLMUnavailableError
 from app.prompts import SYSTEM_PROMPT, build_user_prompt
@@ -17,6 +17,7 @@ from app.schemas import AskResponse, LLMStructuredResponse, Source
 logger = logging.getLogger(__name__)
 
 ABSTENTION = "The information is unavailable in the provided documents."
+_MAX_EXCERPT_LENGTH = 500
 
 
 class LLMClient(Protocol):
@@ -46,20 +47,34 @@ class LangChainLLM:
 
 
 class QAService:
-    def __init__(self, vectorstore: Chroma, llm: LLMClient):
+    def __init__(self, vectorstore: VectorStore, llm: LLMClient):
         self.vectorstore = vectorstore
         self.llm = llm
 
+    def _is_collection_empty(self) -> bool:
+        """Return True when no documents have been indexed yet.
+
+        NOTE: Safely inspects the private ``_collection`` attribute on Chroma
+        if present. For vectorstores without it, returns False to proceed with query.
+        """
+        collection = getattr(self.vectorstore, "_collection", None)
+        if collection is not None and hasattr(collection, "count"):
+            try:
+                return collection.count() == 0
+            except Exception:
+                return False
+        return False
+
     def ask(self, question: str, *, top_k: int, relevance_threshold: float) -> AskResponse:
         # Retrieve relevant chunks
-        if self.vectorstore._collection.count() == 0:
+        if self._is_collection_empty():
             return self._abstain(question)
 
-        results = self.vectorstore.similarity_search_with_score(question, k=top_k)
+        results = self.vectorstore.similarity_search_with_relevance_scores(question, k=top_k)
 
-        # Filter by relevance threshold (cosine distance: lower = more similar)
+        # Filter by relevance threshold (relevance score: higher = more similar, range 0.0–1.0)
         evidence: list[tuple[Document, float]] = [
-            (doc, score) for doc, score in results if score <= relevance_threshold
+            (doc, score) for doc, score in results if score >= relevance_threshold
         ]
         if not evidence:
             return self._abstain(question)
@@ -82,8 +97,8 @@ class QAService:
             llm_result = self.llm.invoke(question, evidence_dicts)
         except LLMUnavailableError:
             raise
-        except (ValueError, Exception):
-            logger.warning("LLM output error; abstaining")
+        except ValueError:
+            logger.warning("LLM output parsing error; abstaining")
             return self._abstain(question)
 
         return self._ground_response(question, llm_result, evidence_dicts)
@@ -121,7 +136,11 @@ class QAService:
         for e in resolved:
             if e["chunk_id"] not in seen:
                 seen.add(e["chunk_id"])
-                excerpt = e["text"] if len(e["text"]) <= 500 else e["text"][:497] + "..."
+                excerpt = (
+                    e["text"]
+                    if len(e["text"]) <= _MAX_EXCERPT_LENGTH
+                    else e["text"][: _MAX_EXCERPT_LENGTH - 3] + "..."
+                )
                 sources.append(Source(
                     document=e["filename"],
                     excerpt=excerpt,
