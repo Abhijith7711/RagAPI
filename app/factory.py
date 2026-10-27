@@ -1,14 +1,15 @@
-"""FastAPI application factory."""
-
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import documents, health, questions, ui
 from app.config import Settings, get_settings
@@ -16,6 +17,9 @@ from app.exceptions import AppError
 from app.schemas import ErrorResponse
 from app.services.ingestion import IngestionService
 from app.services.qa import LLMClient, QAService
+
+if TYPE_CHECKING:
+    from langchain_core.embeddings import Embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ def configure_logging(level: str) -> None:
     )
 
 
-def build_vectorstore(settings: Settings, embedding_function: object | None = None):
+def build_vectorstore(settings: Settings, embedding_function: Embeddings | None = None):
     """Create a persistent LangChain Chroma vector store with cosine similarity."""
     from langchain_chroma import Chroma
 
@@ -35,7 +39,7 @@ def build_vectorstore(settings: Settings, embedding_function: object | None = No
         from langchain_huggingface import HuggingFaceEmbeddings
         embedding_function = HuggingFaceEmbeddings(model_name=settings.embedding_model)
 
-    persist_dir = Path(settings.chroma_persist_directory)
+    persist_dir = settings.chroma_persist_directory
     persist_dir.mkdir(parents=True, exist_ok=True)
 
     return Chroma(
@@ -70,8 +74,8 @@ def build_llm(settings: Settings, llm: LLMClient | None = None) -> LLMClient:
 
 def create_app(
     settings: Settings | None = None,
-    embedder=None,
-    llm=None,
+    embedder: Embeddings | None = None,
+    llm: LLMClient | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
@@ -96,6 +100,15 @@ def create_app(
     app.state.ingestion_service = ingestion
     app.state.qa_service = qa
 
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
     app.include_router(health.router)
     app.include_router(documents.router)
     app.include_router(questions.router)
@@ -119,6 +132,24 @@ def create_app(
         return JSONResponse(
             status_code=422,
             content=ErrorResponse(detail=detail, error_code="validation_error").model_dump(),
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def handle_http_exception(_: Request, exc: StarletteHTTPException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(detail=str(exc.detail), error_code="http_error").model_dump(),
+        )
+
+    @app.exception_handler(Exception)
+    async def handle_unexpected_error(_: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled server error: %s", exc)
+        return JSONResponse(
+            status_code=500,
+            content=ErrorResponse(
+                detail="An unexpected internal error occurred.",
+                error_code="internal_error",
+            ).model_dump(),
         )
 
     return app

@@ -86,6 +86,20 @@ def test_upload_validation_errors(client):
     assert broken_pdf.status_code == 422
     assert broken_pdf.json()["error_code"] == "unreadable_document"
 
+    # Exceeds max upload limit (configured via settings.max_upload_size_mb)
+    oversized = client.post(
+        "/documents",
+        files={"file": ("huge.txt", b"A" * (10 * 1024 * 1024 + 100), "text/plain")},
+    )
+    assert oversized.status_code == 413
+    assert oversized.json()["error_code"] == "payload_too_large"
+
+
+def test_not_found_returns_standard_error_response(client):
+    res = client.get("/non-existent-endpoint")
+    assert res.status_code == 404
+    assert res.json()["error_code"] == "http_error"
+
 
 def test_ask_question_grounded(client, scripted_llm):
     client.post(

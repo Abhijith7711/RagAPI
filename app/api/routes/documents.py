@@ -13,13 +13,22 @@ router = APIRouter(tags=["documents"])
 
 
 @router.post("/documents", response_model=IngestResponse)
-async def upload_document(
+def upload_document(
     file: UploadFile = File(...),
     settings: Settings = Depends(get_settings),
     ingestion: IngestionService = Depends(get_ingestion_service),
 ) -> IngestResponse:
     filename = validate_filename(file.filename)
-    content = await file.read()
-    if len(content) > settings.max_upload_bytes:
-        raise PayloadTooLargeError(settings.max_upload_size_mb)
-    return ingestion.ingest(filename, content)
+
+    # Read content in chunks to prevent unbounded memory buffering on oversized payloads
+    chunk_size = 64 * 1024
+    content = bytearray()
+    while True:
+        chunk = file.file.read(chunk_size)
+        if not chunk:
+            break
+        content.extend(chunk)
+        if len(content) > settings.max_upload_bytes:
+            raise PayloadTooLargeError(settings.max_upload_size_mb)
+
+    return ingestion.ingest(filename, bytes(content))
