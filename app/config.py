@@ -1,5 +1,7 @@
 """Environment-driven application settings."""
 
+from __future__ import annotations
+
 from functools import lru_cache
 from pathlib import Path
 
@@ -25,10 +27,10 @@ class Settings(BaseSettings):
     chroma_collection_name: str = "documents"
 
     # Chunking & Retrieval Parameters
-    chunk_size: int = Field(default=2000, ge=100)
-    chunk_overlap: int = Field(default=300, ge=0)
+    chunk_size: int = Field(default=1000, ge=100)
+    chunk_overlap: int = Field(default=150, ge=0)
     top_k: int = Field(default=5, ge=1, le=20)
-    relevance_threshold: float = Field(default=0.70, ge=0.0, le=2.0)
+    relevance_threshold: float = Field(default=0.70, ge=0.0, le=1.0)
     max_upload_size_mb: int = Field(default=10, ge=1)
     max_question_length: int = Field(default=2000, ge=1)
     log_level: str = "INFO"

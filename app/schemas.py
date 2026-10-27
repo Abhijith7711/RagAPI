@@ -1,40 +1,17 @@
 """Request, response, and internal data models."""
 
-from typing import Literal, Optional
+from __future__ import annotations
+
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
-
-
-class ExtractedPage(BaseModel):
-    page_number: Optional[int] = None
-    text: str
-
-
-class ExtractedDocument(BaseModel):
-    filename: str
-    text: str
-    pages: list[ExtractedPage] = Field(default_factory=list)
-
-
-class Chunk(BaseModel):
-    chunk_id: str
-    document_id: str
-    filename: str
-    chunk_index: int
-    text: str
-    page_number: Optional[int] = None
-    document_hash: str
-
-
-class RetrievedChunk(Chunk):
-    distance: float
 
 
 class Source(BaseModel):
     document: str
     excerpt: str
     chunk_id: str
-    page: Optional[int] = None
+    page: int | None = None
 
 
 class IngestResponse(BaseModel):
@@ -47,8 +24,8 @@ class IngestResponse(BaseModel):
 
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
-    top_k: Optional[int] = Field(default=None, ge=1, le=20)
-    relevance_threshold: Optional[float] = Field(default=None, ge=0.0, le=2.0)
+    top_k: int | None = Field(default=None, ge=1, le=20)
+    relevance_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
 
     @field_validator("question")
     @classmethod
@@ -82,6 +59,7 @@ class ErrorResponse(BaseModel):
 
 
 class LLMStructuredResponse(BaseModel):
+    """Schema for structured LLM output — used by ChatGroq.with_structured_output()."""
     answer: str
     found_in_documents: bool
     supporting_chunk_ids: list[str] = Field(default_factory=list)

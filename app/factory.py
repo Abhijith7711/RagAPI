@@ -14,12 +14,8 @@ from app.api.routes import documents, health, questions, ui
 from app.config import Settings, get_settings
 from app.exceptions import AppError
 from app.schemas import ErrorResponse
-from app.services.embeddings import FakeEmbeddings, SentenceTransformerEmbeddings
 from app.services.ingestion import IngestionService
-from app.services.llm import GroqLLM, LLMClient
-from app.services.qa import QAService
-from app.services.retrieval import RetrievalService
-from app.services.vector_store import VectorStore
+from app.services.qa import LLMClient, QAService
 
 logger = logging.getLogger(__name__)
 
@@ -31,46 +27,64 @@ def configure_logging(level: str) -> None:
     )
 
 
-def build_embedder(settings: Settings, embedder=None):
-    if embedder is not None:
-        return embedder
-    if settings.embedding_model in {"fake", "fake-hash-embeddings"}:
-        return FakeEmbeddings()
-    return SentenceTransformerEmbeddings(settings.embedding_model)
+def build_vectorstore(settings: Settings, embedding_function: object | None = None):
+    """Create a persistent LangChain Chroma vector store with cosine similarity."""
+    from langchain_chroma import Chroma
+
+    if embedding_function is None:
+        from langchain_huggingface import HuggingFaceEmbeddings
+        embedding_function = HuggingFaceEmbeddings(model_name=settings.embedding_model)
+
+    persist_dir = Path(settings.chroma_persist_directory)
+    persist_dir.mkdir(parents=True, exist_ok=True)
+
+    return Chroma(
+        collection_name=settings.chroma_collection_name,
+        embedding_function=embedding_function,
+        persist_directory=str(persist_dir),
+        collection_metadata={"hnsw:space": "cosine"},
+    )
 
 
 def build_llm(settings: Settings, llm: LLMClient | None = None) -> LLMClient:
+    """Return a LangChain LLM adapter, or the injected test double."""
     if llm is not None:
-        return llm
-    return GroqLLM(
-        api_key=settings.groq_api_key,
+        return llm  # type: ignore[return-value]  # test double satisfies protocol
+
+    from langchain_groq import ChatGroq
+    from app.services.qa import LangChainLLM
+
+    if not settings.groq_api_key:
+        from app.exceptions import LLMUnavailableError
+        raise LLMUnavailableError(
+            "GROQ_API_KEY is not configured. Please set your GROQ_API_KEY in the .env file."
+        )
+
+    chat_model = ChatGroq(
         model=settings.llm_model,
         temperature=settings.llm_temperature,
+        api_key=settings.groq_api_key,
     )
+    return LangChainLLM(chat_model)
 
 
 def create_app(
     settings: Settings | None = None,
     embedder=None,
-    llm: LLMClient | None = None,
+    llm=None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.log_level)
 
-    embedder = build_embedder(settings, embedder)
-    vector_store = VectorStore(
-        persist_directory=settings.chroma_persist_directory,
-        collection_name=settings.chroma_collection_name,
-        embedding_model=embedder.model_name,
-    )
+    vectorstore = build_vectorstore(settings, embedding_function=embedder)
     llm_client = build_llm(settings, llm)
+
     ingestion = IngestionService(
-        embedder=embedder,
-        vector_store=vector_store,
+        vectorstore=vectorstore,
         chunk_size=settings.chunk_size,
         chunk_overlap=settings.chunk_overlap,
     )
-    qa = QAService(retrieval=RetrievalService(embedder, vector_store), llm=llm_client)
+    qa = QAService(vectorstore=vectorstore, llm=llm_client)
 
     app = FastAPI(
         title="RAG API",
@@ -78,8 +92,7 @@ def create_app(
         version="1.0.0",
     )
     app.state.settings = settings
-    app.state.embedder = embedder
-    app.state.vector_store = vector_store
+    app.state.vectorstore = vectorstore
     app.state.ingestion_service = ingestion
     app.state.qa_service = qa
 

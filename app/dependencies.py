@@ -1,5 +1,7 @@
 """Shared FastAPI dependencies bound on application startup."""
 
+from __future__ import annotations
+
 from fastapi import Request
 
 from app.config import Settings

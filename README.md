@@ -1,16 +1,18 @@
 # RAG Knowledge Assistant
 
-A production-grade, document-grounded Retrieval-Augmented Generation (RAG) API built with FastAPI, ChromaDB, SentenceTransformers, and Groq LLM.
+A production-grade, document-grounded Retrieval-Augmented Generation (RAG) API built with FastAPI, LangChain, ChromaDB, HuggingFace embeddings, and Groq LLM.
 
 Answers questions strictly from uploaded documents, provides exact source citations with excerpts, and **reliably abstains** whenever information is absent (strongly mitigating hallucinations via citation validation).
 
 ---
 
 ## Features 
-- **Document Ingestion:** Ingests PDF, TXT, and Markdown files with sliding-window chunking, paragraph-boundary preservation, and SHA-256 deduplication.
-- **Semantic Retrieval:** Dense embeddings (`sentence-transformers/all-MiniLM-L6-v2`) and persistent vector search using ChromaDB.
-- **Grounded LLM Answering:** Integrates with Groq (`openai/gpt-oss-120b`) using structured JSON generation.
-- **Evidence & Citations:** Every answer cites source document names, page numbers (for PDFs), and text excerpts.
+- **Industry-Standard Architecture:** Built with modern LangChain ecosystem (`langchain-core`, `langchain-chroma`, `langchain-groq`, `langchain-text-splitters`, `langchain-huggingface`).
+- **Document Ingestion:** Ingests PDF (with per-page metadata), TXT, and Markdown files with SHA-256 deduplication.
+- **Smart Chunking:** Utilizes LangChain's `RecursiveCharacterTextSplitter` with configurable chunk sizes, overlap, and paragraph/sentence boundary preservation.
+- **Semantic Retrieval:** Dense embeddings (`sentence-transformers/all-MiniLM-L6-v2`) and persistent cosine vector search with `langchain-chroma`.
+- **Grounded LLM Answering:** Integrates with Groq via `ChatGroq` using Pydantic structured outputs (`with_structured_output(LLMStructuredResponse)`).
+- **Evidence & Citations:** Every answer cites source document names, page numbers (for PDFs), chunk IDs, and text excerpts.
 - **Reliable Abstention:** Two-stage abstention filters out unanswerable queries before or after LLM generation.
 - **FastAPI Endpoints:** Clean endpoints for ingestion (`/documents`), asking questions (`/ask`), health checks (`/health`), and readiness (`/ready`).
 - **Interactive Web UI:** Minimal, elegant web interface at `http://localhost:8000/` for dragging & dropping documents and chatting live.

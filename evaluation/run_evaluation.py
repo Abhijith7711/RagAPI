@@ -16,17 +16,10 @@ if str(ROOT) not in sys.path:
 
 from app.config import Settings
 from app.factory import create_app
-from app.services.embeddings import FakeEmbeddings, SentenceTransformerEmbeddings
-from app.services.llm import GroqLLM
 
 SAMPLE_DIR = ROOT / "sample_documents"
 QUESTIONS_PATH = ROOT / "evaluation" / "questions.json"
 RESULTS_DIR = ROOT / "evaluation" / "results"
-
-
-def normalize(text: str) -> str:
-    compact = re.sub(r"[,\s]+", "", text.lower())
-    return compact
 
 
 def fact_present(answer: str, fact: str) -> bool:
@@ -58,12 +51,13 @@ def evaluate_item(app, item: dict) -> dict:
     )
     source_docs = [source.document for source in result.sources]
     fact_hits = {fact: fact_present(result.answer, fact) for fact in item.get("required_facts", [])}
-    retrieval = app.state.qa_service.retrieval.search(
-        item["question"],
-        top_k=settings.top_k,
-        relevance_threshold=settings.relevance_threshold,
+
+    # Retrieve for document-level check
+    vectorstore = app.state.vectorstore
+    retrieval = vectorstore.similarity_search_with_score(
+        item["question"], k=settings.top_k
     )
-    retrieved_docs = sorted({chunk.filename for chunk in retrieval})
+    retrieved_docs = sorted({doc.metadata.get("filename", "") for doc, _ in retrieval})
 
     expected_found = item["expected_found"]
     found_ok = result.found_in_documents is expected_found
@@ -100,7 +94,6 @@ def evaluate_item(app, item: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate the RAG pipeline.")
-    parser.add_argument("--live-llm", action="store_true", help="Use Groq when GROQ_API_KEY is set.")
     parser.add_argument("--real-embeddings", action="store_true", help="Use MiniLM instead of fake embeddings.")
     args = parser.parse_args()
 
@@ -114,24 +107,36 @@ def main() -> int:
         chunk_size=800,
         chunk_overlap=120,
         top_k=5,
-        relevance_threshold=0.60 if args.real_embeddings else 1.05,
+        relevance_threshold=0.70 if args.real_embeddings else 0.0,
     )
 
+    # Build embeddings
     if args.real_embeddings:
-        embedder = SentenceTransformerEmbeddings(settings.embedding_model)
+        from langchain_huggingface import HuggingFaceEmbeddings
+        embedder = HuggingFaceEmbeddings(model_name=settings.embedding_model)
     else:
+        from tests.conftest import FakeEmbeddings
         embedder = FakeEmbeddings()
+
+    embedding_backend = getattr(embedder, "model_name", "unknown")
 
     if not settings.groq_api_key:
         print("ERROR: GROQ_API_KEY is not configured in .env. Please set GROQ_API_KEY to run the evaluation.")
         return 1
 
-    llm = GroqLLM(settings.groq_api_key, settings.llm_model, settings.llm_temperature)
-    llm_mode = "groq"
+    # Build LLM
+    from langchain_groq import ChatGroq
+    from app.services.qa import LangChainLLM
+
+    chat_model = ChatGroq(
+        model=settings.llm_model,
+        temperature=settings.llm_temperature,
+        api_key=settings.groq_api_key,
+    )
+    llm = LangChainLLM(chat_model)
 
     if persist.exists():
         import shutil
-
         shutil.rmtree(persist, ignore_errors=True)
 
     app = create_app(settings=settings, embedder=embedder, llm=llm)
@@ -146,8 +151,8 @@ def main() -> int:
     passed = sum(1 for row in rows if row["passed"])
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "llm_mode": llm_mode,
-        "embedding_backend": embedder.model_name,
+        "llm_mode": "groq",
+        "embedding_backend": embedding_backend,
         "relevance_threshold": settings.relevance_threshold,
         "chunk_size": settings.chunk_size,
         "total": len(rows),
@@ -163,8 +168,8 @@ def main() -> int:
     output_path = RESULTS_DIR / "latest.json"
     output_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
-    print(f"LLM mode: {llm_mode}")
-    print(f"Embeddings: {embedder.model_name}")
+    print(f"LLM mode: groq")
+    print(f"Embeddings: {embedding_backend}")
     print(f"Passed {passed}/{len(rows)}")
     for row in rows:
         mark = "PASS" if row["passed"] else "FAIL"

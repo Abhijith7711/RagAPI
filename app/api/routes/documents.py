@@ -1,3 +1,5 @@
+"""Document ingestion endpoint — validates, loads, and indexes uploaded files."""
+
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.config import Settings

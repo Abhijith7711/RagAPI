@@ -19,4 +19,5 @@ Thumbs.db
 evaluation/results/*.json
 !evaluation/results/.gitkeep
 evaluation/results/eval_chroma/
-
+.agents/
+skills-lock.json
