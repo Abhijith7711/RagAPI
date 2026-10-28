@@ -59,7 +59,9 @@ class IngestionService:
             chunk.metadata["chunk_id"] = chunk_id
             chunk.id = chunk_id
 
-        self.vectorstore.add_documents(chunks)
+        batch_size = 64
+        for i in range(0, len(chunks), batch_size):
+            self.vectorstore.add_documents(chunks[i : i + batch_size])
         logger.info("Indexed %s chunks for %s", len(chunks), filename)
         return IngestResponse(
             status="ingested",

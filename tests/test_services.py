@@ -207,3 +207,41 @@ def test_qa_service_multi_evidence():
     res = qa.ask("What are leave allowances?", top_k=5, relevance_threshold=0.6)
     assert res.found_in_documents is True
     assert len(res.sources) == 2
+
+
+def test_qa_service_resolves_all_chunks_for_document_citation():
+    evidence = [
+        _make_evidence("hash-abc:0", "Paragraph 1 about policy."),
+        _make_evidence("hash-abc:1", "Paragraph 2 about policy."),
+    ]
+    # LLM cites by document filename instead of specific chunk ID
+    llm = ScriptedLLM(
+        LLMStructuredResponse(
+            answer="Policy details in handbook.",
+            found_in_documents=True,
+            supporting_chunk_ids=["handbook.md"],
+        )
+    )
+
+    class StubVectorStore:
+        _collection = type("C", (), {"count": lambda self: 2})()
+
+        def similarity_search_with_relevance_scores(self, query, k=5):
+            from langchain_core.documents import Document
+
+            return [(Document(page_content=e["text"], metadata={
+                "chunk_id": e["chunk_id"],
+                "filename": e["filename"],
+                "page_number": e["page_number"],
+                "document_id": "hash-abc",
+                "document_hash": "hash-abc",
+                "chunk_index": idx,
+            }), 0.85) for idx, e in enumerate(evidence)]
+
+    qa = QAService(StubVectorStore(), llm)
+    res = qa.ask("Tell me about policy", top_k=5, relevance_threshold=0.6)
+    assert res.found_in_documents is True
+    # Both chunks from the cited handbook.md should be resolved, not overwritten
+    assert len(res.sources) == 2
+    assert {s.chunk_id for s in res.sources} == {"hash-abc:0", "hash-abc:1"}
+

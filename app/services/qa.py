@@ -109,22 +109,42 @@ class QAService:
         """Validate cited chunk IDs against actual retrieved evidence."""
         evidence_by_id = {e["chunk_id"]: e for e in evidence}
         # Also index by document_hash and filename for flexible matching
-        evidence_by_doc: dict[str, dict] = {}
+        evidence_by_doc: dict[str, list[dict]] = {}
         for e in evidence:
             doc_hash = e["chunk_id"].split(":")[0] if ":" in e["chunk_id"] else ""
-            evidence_by_doc[doc_hash] = e
-            evidence_by_doc[e["filename"]] = e
+            if doc_hash:
+                evidence_by_doc.setdefault(doc_hash, []).append(e)
+            if e.get("filename"):
+                evidence_by_doc.setdefault(e["filename"], []).append(e)
 
-        resolved = []
-        for cited in llm_result.supporting_chunk_ids:
+        resolved: list[dict] = []
+        for raw_cited in llm_result.supporting_chunk_ids:
+            cited = str(raw_cited).strip(" []'\"`")
+            if not cited:
+                continue
+            # Strip common prefixes like 'evidence_id=' or 'chunk_id='
+            if "=" in cited:
+                cited = cited.split("=")[-1].strip()
+
             if cited in evidence_by_id:
                 resolved.append(evidence_by_id[cited])
             elif cited in evidence_by_doc:
-                resolved.append(evidence_by_doc[cited])
+                resolved.extend(evidence_by_doc[cited])
             else:
-                # Try prefix matching (e.g., LLM cites "abc123" but actual is "abc123:0")
-                matching = [e for e in evidence if e["chunk_id"].startswith(f"{cited}:")]
-                resolved.extend(matching)
+                # Case-insensitive filename or hash match
+                matched_by_doc = False
+                for k, v in evidence_by_doc.items():
+                    if k.lower() == cited.lower():
+                        resolved.extend(v)
+                        matched_by_doc = True
+                if not matched_by_doc:
+                    # Prefix matching (e.g. LLM cites "abc123" but actual is "abc123:0")
+                    matching = [
+                        e for e in evidence
+                        if e["chunk_id"].startswith(f"{cited}:")
+                        or e["chunk_id"].startswith(cited)
+                    ]
+                    resolved.extend(matching)
 
         if not llm_result.found_in_documents or not resolved:
             logger.info("Abstaining after citation validation")
