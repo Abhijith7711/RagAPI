@@ -20,6 +20,7 @@ from app.services.qa import LLMClient, QAService
 
 if TYPE_CHECKING:
     from langchain_core.embeddings import Embeddings
+    from langchain_core.vectorstores import VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def configure_logging(level: str) -> None:
     )
 
 
-def build_vectorstore(settings: Settings, embedding_function: Embeddings | None = None):
+def build_vectorstore(settings: Settings, embedding_function: Embeddings | None = None) -> VectorStore:
     """Create a persistent LangChain Chroma vector store with cosine similarity."""
     from langchain_chroma import Chroma
 

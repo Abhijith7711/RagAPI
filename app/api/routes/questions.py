@@ -1,5 +1,7 @@
 """Question-answering endpoint — retrieves relevant context and invokes the LLM."""
 
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends
 
 from app.config import Settings

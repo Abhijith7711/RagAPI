@@ -1,5 +1,7 @@
 """Document ingestion endpoint — validates, loads, and indexes uploaded files."""
 
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.config import Settings
@@ -8,6 +10,8 @@ from app.exceptions import PayloadTooLargeError
 from app.schemas import IngestResponse
 from app.services.document_loader import validate_filename
 from app.services.ingestion import IngestionService
+
+_READ_CHUNK_BYTES = 64 * 1024  # 64 KB streaming read buffer
 
 router = APIRouter(tags=["documents"])
 
@@ -21,10 +25,9 @@ def upload_document(
     filename = validate_filename(file.filename)
 
     # Read content in chunks to prevent unbounded memory buffering on oversized payloads
-    chunk_size = 64 * 1024
     content = bytearray()
     while True:
-        chunk = file.file.read(chunk_size)
+        chunk = file.file.read(_READ_CHUNK_BYTES)
         if not chunk:
             break
         content.extend(chunk)

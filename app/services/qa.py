@@ -47,7 +47,9 @@ class LangChainLLM:
 
 
 class QAService:
-    def __init__(self, vectorstore: VectorStore, llm: LLMClient):
+    """Retrieval-augmented question answering with citation grounding and abstention."""
+
+    def __init__(self, vectorstore: VectorStore, llm: LLMClient) -> None:
         self.vectorstore = vectorstore
         self.llm = llm
 
@@ -81,10 +83,10 @@ class QAService:
 
         # Build evidence dicts for prompt
         evidence_dicts = []
-        for idx, (doc, score) in enumerate(evidence):
+        for doc, _score in evidence:
             chunk_id = (
                 doc.metadata.get("chunk_id")
-                or (doc.metadata.get("document_id", "") + f":{doc.metadata.get('chunk_index', idx)}")
+                or f"{doc.metadata.get('document_id', '')}:{doc.metadata.get('chunk_index', 0)}"
             )
             evidence_dicts.append({
                 "chunk_id": chunk_id,
@@ -107,15 +109,15 @@ class QAService:
         self, question: str, llm_result: LLMStructuredResponse, evidence: list[dict]
     ) -> AskResponse:
         """Validate cited chunk IDs against actual retrieved evidence."""
-        evidence_by_id = {e["chunk_id"]: e for e in evidence}
-        # Also index by document_hash and filename for flexible matching
-        evidence_by_doc: dict[str, list[dict]] = {}
+        evidence_by_id: dict[str, dict] = {e["chunk_id"]: e for e in evidence}
+        # Also index by document hash prefix and filename for flexible LLM citation matching
+        evidence_by_key: dict[str, list[dict]] = {}
         for e in evidence:
             doc_hash = e["chunk_id"].split(":")[0] if ":" in e["chunk_id"] else ""
             if doc_hash:
-                evidence_by_doc.setdefault(doc_hash, []).append(e)
+                evidence_by_key.setdefault(doc_hash, []).append(e)
             if e.get("filename"):
-                evidence_by_doc.setdefault(e["filename"], []).append(e)
+                evidence_by_key.setdefault(e["filename"], []).append(e)
 
         resolved: list[dict] = []
         for raw_cited in llm_result.supporting_chunk_ids:
@@ -128,16 +130,16 @@ class QAService:
 
             if cited in evidence_by_id:
                 resolved.append(evidence_by_id[cited])
-            elif cited in evidence_by_doc:
-                resolved.extend(evidence_by_doc[cited])
+            elif cited in evidence_by_key:
+                resolved.extend(evidence_by_key[cited])
             else:
                 # Case-insensitive filename or hash match
-                matched_by_doc = False
-                for k, v in evidence_by_doc.items():
+                matched_by_key = False
+                for k, v in evidence_by_key.items():
                     if k.lower() == cited.lower():
                         resolved.extend(v)
-                        matched_by_doc = True
-                if not matched_by_doc:
+                        matched_by_key = True
+                if not matched_by_key:
                     # Prefix matching (e.g. LLM cites "abc123" but actual is "abc123:0")
                     matching = [
                         e for e in evidence

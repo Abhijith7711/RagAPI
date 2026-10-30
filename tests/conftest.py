@@ -18,10 +18,10 @@ class FakeEmbeddings(Embeddings):
     Tokens are hashed into a fixed-size bag-of-words vector so overlapping
     wording produces similar vectors without downloading a model.
     """
-    model_name: str = "fake-hash-embeddings"
 
-    def __init__(self, dimensions: int = 32):
+    def __init__(self, dimensions: int = 32) -> None:
         self.dimensions = dimensions
+        self.model_name = "fake-hash-embeddings"
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return [self._embed(text) for text in texts]

@@ -52,9 +52,9 @@ def evaluate_item(app, item: dict) -> dict:
     source_docs = [source.document for source in result.sources]
     fact_hits = {fact: fact_present(result.answer, fact) for fact in item.get("required_facts", [])}
 
-    # Retrieve for document-level check
+    # Retrieve for document-level check (use relevance scores API for consistency)
     vectorstore = app.state.vectorstore
-    retrieval = vectorstore.similarity_search_with_score(
+    retrieval = vectorstore.similarity_search_with_relevance_scores(
         item["question"], k=settings.top_k
     )
     retrieved_docs = sorted({doc.metadata.get("filename", "") for doc, _ in retrieval})
@@ -168,7 +168,7 @@ def main() -> int:
     output_path = RESULTS_DIR / "latest.json"
     output_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
-    print(f"LLM mode: groq")
+    print("LLM mode: groq")
     print(f"Embeddings: {embedding_backend}")
     print(f"Passed {passed}/{len(rows)}")
     for row in rows:

@@ -12,9 +12,13 @@ from app.services.document_loader import load_document
 
 logger = logging.getLogger(__name__)
 
+_BATCH_SIZE = 64  # Max documents per vectorstore.add_documents() call
+
 
 class IngestionService:
-    def __init__(self, vectorstore: VectorStore, chunk_size: int, chunk_overlap: int):
+    """Handles document ingestion: loading, splitting, deduplication, and indexing."""
+
+    def __init__(self, vectorstore: VectorStore, chunk_size: int, chunk_overlap: int) -> None:
         self.vectorstore = vectorstore
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
@@ -59,9 +63,8 @@ class IngestionService:
             chunk.metadata["chunk_id"] = chunk_id
             chunk.id = chunk_id
 
-        batch_size = 64
-        for i in range(0, len(chunks), batch_size):
-            self.vectorstore.add_documents(chunks[i : i + batch_size])
+        for i in range(0, len(chunks), _BATCH_SIZE):
+            self.vectorstore.add_documents(chunks[i : i + _BATCH_SIZE])
         logger.info("Indexed %s chunks for %s", len(chunks), filename)
         return IngestResponse(
             status="ingested",
